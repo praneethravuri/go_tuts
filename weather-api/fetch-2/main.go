@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -60,7 +60,7 @@ func fetchWeatherDetails(city string) (WeatherResponse, error) {
 	}
 	defer response.Body.Close()
 
-	responseData, err := ioutil.ReadAll(response.Body)
+	responseData, err := io.ReadAll(response.Body)
 	if err != nil {
 		return WeatherResponse{}, err
 	}

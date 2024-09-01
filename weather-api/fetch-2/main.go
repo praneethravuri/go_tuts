@@ -101,12 +101,12 @@ func main() {
 
 	wg.Wait()
 
-    for _, res := range allResponses {
-        fmt.Printf("City: %s\n", res.Name)
-        fmt.Printf("Temperature: %.2f°C\n", res.Main.Temp-273.15)
-        fmt.Printf("Humidity: %d%%\n", res.Main.Humidity)
-        fmt.Printf("Weather: %s\n", res.Weather[0].Description)
-        fmt.Println()
-    }
+	for _, res := range allResponses {
+		fmt.Printf("City: %s\n", res.Name)
+		fmt.Printf("Temperature: %.2f°C\n", res.Main.Temp-273.15)
+		fmt.Printf("Humidity: %d%%\n", res.Main.Humidity)
+		fmt.Printf("Weather: %s\n", res.Weather[0].Description)
+		fmt.Println()
+	}
 
 }

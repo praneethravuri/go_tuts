@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"sync"
 	"log"
+	"net/http"
 	"strings"
+	"sync"
 )
 
 type NamedAPIResource struct {
@@ -66,7 +66,7 @@ type Type struct {
 	Type NamedAPIResource `json:"type"`
 }
 
-func fetchPokemonDetails(p string, errors chan<- error, results chan <- Pokemon) {
+func fetchPokemonDetails(p string, errors chan<- error, results chan<- Pokemon) {
 	url := fmt.Sprintf("https://pokeapi.co/api/v2/pokemon/%s", p)
 
 	response, err := http.Get(url)
@@ -75,51 +75,55 @@ func fetchPokemonDetails(p string, errors chan<- error, results chan <- Pokemon)
 	}
 	defer response.Body.Close()
 
-	responseData, err := io.ReadAll(response.Body)
-	if err != nil {
-		fmt.Printf("\nError while reading response data for %s: %v", p, err)
+	if response.StatusCode != 404 {
+		responseData, err := io.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("\nError while reading response data for %s: %v", p, err)
+		}
+
+		var pokemonData Pokemon
+		err = json.Unmarshal(responseData, &pokemonData)
+		if err != nil {
+			fmt.Printf("\nError while unmarshaling JSON for %s: %v", p, err)
+		}
+
+		results <- pokemonData
+	} else {
+		errors <- fmt.Errorf("Data for %s not found", p)
 	}
 
-	var pokemonData Pokemon
-	err = json.Unmarshal(responseData, &pokemonData)
-	if err != nil {
-		fmt.Printf("\nError while unmarshaling JSON for %s: %v", p, err)
-	}
-
-	results <- pokemonData
 }
 
 func printPokedexEntry(pokemon Pokemon) {
-    fmt.Printf("Name: %s\n", strings.ToUpper(pokemon.Name))
-    
-    // Types
-    types := make([]string, len(pokemon.Types))
-    for i, t := range pokemon.Types {
-        types[i] = strings.ToUpper(t.Type.Name)
-    }
-    fmt.Printf("Type: %s\n", strings.Join(types, "/"))
-    
-    // Abilities
-    abilities := make([]string, len(pokemon.Abilities))
-    for i, ability := range pokemon.Abilities {
-        abilities[i] = ability.Ability.Name
-    }
-    fmt.Printf("Abilities: %s\n", strings.Join(abilities, ", "))
-    
-    // Stats
-    fmt.Println("Stats:")
-    for _, stat := range pokemon.Stats {
-        fmt.Printf("  %s: %d\n", strings.ToUpper(stat.Stat.Name), stat.BaseStat)
-    }
-    
-    // Other details
-    fmt.Printf("Height: %.1f m\n", float64(pokemon.Height) / 10)
-    fmt.Printf("Weight: %.1f kg\n", float64(pokemon.Weight) / 10)
-    fmt.Printf("Base Experience: %d\n", pokemon.BaseExperience)
-    
-    fmt.Println("------------------------")
-}
+	fmt.Printf("Name: %s\n", strings.ToUpper(pokemon.Name))
 
+	// Types
+	types := make([]string, len(pokemon.Types))
+	for i, t := range pokemon.Types {
+		types[i] = strings.ToUpper(t.Type.Name)
+	}
+	fmt.Printf("Type: %s\n", strings.Join(types, "/"))
+
+	// Abilities
+	abilities := make([]string, len(pokemon.Abilities))
+	for i, ability := range pokemon.Abilities {
+		abilities[i] = ability.Ability.Name
+	}
+	fmt.Printf("Abilities: %s\n", strings.Join(abilities, ", "))
+
+	// Stats
+	fmt.Println("Stats:")
+	for _, stat := range pokemon.Stats {
+		fmt.Printf("  %s: %d\n", strings.ToUpper(stat.Stat.Name), stat.BaseStat)
+	}
+
+	// Other details
+	fmt.Printf("Height: %.1f m\n", float64(pokemon.Height)/10)
+	fmt.Printf("Weight: %.1f kg\n", float64(pokemon.Weight)/10)
+	fmt.Printf("Base Experience: %d\n", pokemon.BaseExperience)
+
+	fmt.Println("------------------------")
+}
 
 func main() {
 
@@ -133,6 +137,7 @@ func main() {
 		"xerneas",
 		"solgaleo",
 		"eternatus",
+		"giratina",
 	}
 
 	var wg sync.WaitGroup
@@ -140,15 +145,15 @@ func main() {
 	errors := make(chan error, len(pokemons))
 	results := make(chan Pokemon, len(pokemons))
 
-	for _, pokemon := range pokemons{
+	for _, pokemon := range pokemons {
 		wg.Add(1)
-		go func(pokemon string){
+		go func(pokemon string) {
 			defer wg.Done()
 			fetchPokemonDetails(pokemon, errors, results)
 		}(pokemon)
 	}
 
-	go func(){
+	go func() {
 		wg.Wait()
 		close(results)
 		close(errors)
@@ -156,17 +161,17 @@ func main() {
 
 	var responses []Pokemon
 
-	for range pokemons{
-		select{
-		case result:= <-results:
+	for range pokemons {
+		select {
+		case result := <-results:
 			responses = append(responses, result)
 		case err := <-errors:
 			log.Println(err)
 		}
 	}
 
-    for _, res := range responses {
-        printPokedexEntry(res)
-    }
+	for _, res := range responses {
+		printPokedexEntry(res)
+	}
 
 }

@@ -38,24 +38,18 @@ func generateUser() User {
 func main() {
 	users := generateRandomUsers(10)
 
-	// for _, user := range users {
-	// 	fmt.Printf("Name: %s | Email: %s\n\n", user.Name, user.Email)
-	// }
+	var wg sync.WaitGroup
 
 	articleChan := make(chan Article, 100)
 	done := make(chan bool)
 
-	go generateArticlesRandomly(articleChan, done)
-	go SubscribeUser(articleChan, users)
+	wg.Add(2)
+	go generateArticlesRandomly(articleChan, done, &wg)
+	go SubscribeUser(articleChan, users, &wg)
 
-	time.Sleep(1 * time.Minute)
-
-	done <- true
+	wg.Wait()
 
 	close(articleChan)
-	// for article := range articleChan {
-	// 	fmt.Printf("Topic: %s | Content: %s\n\n", article.Topic, article.Content)
-	// }
 
 	for _, user := range users {
 		fmt.Printf("User: %s | Subscribed Articles:\n", user.Name)
@@ -74,28 +68,25 @@ func generateRandomUsers(count int) []User {
 	return users
 }
 
-func generateArticlesRandomly(articleChan chan<- Article, done <-chan bool) {
-	for {
+func generateArticlesRandomly(articleChan chan<- Article, done chan<- bool, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for i := 0; i < 10; i++ {
+		article := generateArticle()
+
 		select {
-		case <-done:
-			return
+		case articleChan <- article:
+			fmt.Println("New article generated")
 		default:
-
-			article := generateArticle()
-
-			select {
-			case articleChan <- article:
-				fmt.Println("New article generated")
-			default:
-				fmt.Println("Channel full, discarding article")
-			}
-			randomDuration := time.Duration(rand.Intn(5)+1) * time.Second
-			time.Sleep(randomDuration)
+			fmt.Println("Channel full, discarding article")
 		}
+		randomDuration := time.Duration(rand.Intn(5)+1) * time.Second
+		time.Sleep(randomDuration)
 	}
+	done <- true
 }
 
-func SubscribeUser(articleChan <-chan Article, users []User) {
+func SubscribeUser(articleChan <-chan Article, users []User, wg *sync.WaitGroup) {
+	defer wg.Done()
 	for article := range articleChan {
 		randomUserIdx := rand.Intn(len(users))
 		user := &users[randomUserIdx]
